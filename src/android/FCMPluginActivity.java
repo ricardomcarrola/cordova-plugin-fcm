@@ -16,7 +16,7 @@ import java.util.HashMap;
 
 public class FCMPluginActivity extends Activity {
     private static String TAG = "FCMPlugin";
-
+    static boolean isActive = false;
     /*
      * this activity will be started if the user touches a notification that we own. 
      * We send it's data off to the push plugin for processing.
@@ -39,7 +39,7 @@ public class FCMPluginActivity extends Activity {
             }
         }
 		
-		FCMPlugin.sendPushPayload(data);
+	//	FCMPlugin.sendPushPayload(data,this);
 
         finish();
 
@@ -51,7 +51,9 @@ public class FCMPluginActivity extends Activity {
         Intent launchIntent = pm.getLaunchIntentForPackage(getApplicationContext().getPackageName());
         startActivity(launchIntent);
     }
-
+    public Boolean getStatus(){
+        return isActive;
+    }
     @Override
     protected void onResume() {
         super.onResume();
@@ -59,16 +61,24 @@ public class FCMPluginActivity extends Activity {
         final NotificationManager notificationManager = (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
         notificationManager.cancelAll();
     }
-	
+    @Override
+    protected void onPause() {
+        super.onPause();
+        Log.d(TAG, "==> FCMPluginActivity onPause");
+        //final NotificationManager notificationManager = (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
+        //notificationManager.cancelAll();
+    }
 	@Override
 	public void onStart() {
 		super.onStart();
+        isActive = true;
 		Log.d(TAG, "==> FCMPluginActivity onStart");
 	}
 	
 	@Override
 	public void onStop() {
 		super.onStop();
+        isActive = false;
 		Log.d(TAG, "==> FCMPluginActivity onStop");
 	}
 
