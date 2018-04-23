@@ -1,5 +1,6 @@
 package com.gae.scaffolder.plugin;
 
+import android.app.ActivityManager;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
@@ -8,11 +9,16 @@ import android.media.RingtoneManager;
 import android.net.Uri;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
+
+import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 /**
  * Created by Felipe Echanique on 08/06/2016.
@@ -26,15 +32,30 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
      *
      * @param remoteMessage Object representing the message received from Firebase Cloud Messaging.
      */
+
+    private boolean applicationInForeground() {
+        ActivityManager activityManager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        List<ActivityManager.RunningAppProcessInfo> services = activityManager.getRunningAppProcesses();
+        boolean isActivityFound = false;
+
+        if (services.get(0).processName
+                .equalsIgnoreCase(getPackageName())) {
+            isActivityFound = true;
+        }
+
+        return isActivityFound;
+    }
     // [START receive_message]
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
         // TODO(developer): Handle FCM messages here.
+//        android.os.Debug.waitForDebugger();
+        //turn on for debug if needed
         // If the application is in the foreground handle both data and notification messages here.
         // Also if you intend on generating your own notifications as a result of a received FCM
         // message, here is where that should be initiated. See sendNotification method below.
         Log.d(TAG, "==> MyFirebaseMessagingService onMessageReceived");
-		
+		Boolean appStatus = this.applicationInForeground();
 		if( remoteMessage.getNotification() != null){
 			Log.d(TAG, "\tNotification Title: " + remoteMessage.getNotification().getTitle());
 			Log.d(TAG, "\tNotification Message: " + remoteMessage.getNotification().getBody());
@@ -49,7 +70,9 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         }
 		
 		Log.d(TAG, "\tNotification Data: " + data.toString());
-        FCMPlugin.sendPushPayload( data );
+        FCMPlugin.sendPushPayload( data,null );
+        if (!appStatus)
+            this.sendNotification("1","2",data);
         //sendNotification(remoteMessage.getNotification().getTitle(), remoteMessage.getNotification().getBody(), remoteMessage.getData());
     }
     // [END receive_message]
@@ -60,6 +83,18 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
      * @param messageBody FCM message body received.
      */
     private void sendNotification(String title, String messageBody, Map<String, Object> data) {
+        JSONObject jo = new JSONObject(data);
+
+        Integer id = 1;
+        try{
+        id = (new JSONObject(jo.getString("data"))).getJSONObject("egoiCustomData").getInt("messageId");
+        title = (new JSONObject(jo.getString("data"))).getJSONObject("notification").getString("title");
+        messageBody = (new JSONObject(jo.getString("data"))).getJSONObject("notification").getString("body");
+
+        } catch (Exception e) {
+            Log.d(TAG, "\tERROR sendPushToView. SAVED NOTIFICATION: " + e.getMessage());
+        }
+
         Intent intent = new Intent(this, FCMPluginActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
 		for (String key : data.keySet()) {
@@ -80,6 +115,6 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         NotificationManager notificationManager =
                 (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
-        notificationManager.notify(0 /* ID of notification */, notificationBuilder.build());
+        notificationManager.notify(id /* ID of notification */, notificationBuilder.build());
     }
 }
