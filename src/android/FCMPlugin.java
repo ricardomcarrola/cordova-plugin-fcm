@@ -4,6 +4,13 @@ import org.apache.cordova.CordovaWebView;
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CordovaInterface;
+
+import android.app.Activity;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Context;
+import android.content.Intent;
+import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
 import org.json.JSONArray;
@@ -16,12 +23,17 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.iid.FirebaseInstanceId;
 
 import java.util.Map;
+import android.support.v4.app.TaskStackBuilder;
+
+import egoi.egoi.MainActivity;
+import egoi.egoi.R;
 
 public class FCMPlugin extends CordovaPlugin {
  
 	private static final String TAG = "FCMPlugin";
 	
 	public static CordovaWebView gWebView;
+	public static CordovaInterface gCordova;
 	public static String notificationCallBack = "FCMPlugin.onNotificationReceived";
 	public static String tokenRefreshCallBack = "FCMPlugin.onTokenRefreshReceived";
 	public static Boolean notificationCallBackReady = false;
@@ -32,6 +44,7 @@ public class FCMPlugin extends CordovaPlugin {
 	public void initialize(CordovaInterface cordova, CordovaWebView webView) {
 		super.initialize(cordova, webView);
 		gWebView = webView;
+		gCordova = cordova;
 		Log.d(TAG, "==> FCMPlugin initialize");
 		FirebaseMessaging.getInstance().subscribeToTopic("android");
 		FirebaseMessaging.getInstance().subscribeToTopic("all");
@@ -66,7 +79,7 @@ public class FCMPlugin extends CordovaPlugin {
 				notificationCallBackReady = true;
 				cordova.getActivity().runOnUiThread(new Runnable() {
 					public void run() {
-						if(lastPush != null) FCMPlugin.sendPushPayload( lastPush );
+						if(lastPush != null) FCMPlugin.sendPushPayload( lastPush, null );
 						lastPush = null;
 						callbackContext.success();
 					}
@@ -121,7 +134,7 @@ public class FCMPlugin extends CordovaPlugin {
 		return true;
 	}
 	
-	public static void sendPushPayload(Map<String, Object> payload) {
+	public static void sendPushPayload(Map<String, Object> payload, Activity act) {
 		Log.d(TAG, "==> FCMPlugin sendPushPayload");
 		Log.d(TAG, "\tnotificationCallBackReady: " + notificationCallBackReady);
 		Log.d(TAG, "\tgWebView: " + gWebView);
@@ -132,12 +145,16 @@ public class FCMPlugin extends CordovaPlugin {
 				Log.d(TAG, "\tpayload: " + key + " => " + payload.get(key));
             }
 			String callBack = "javascript:" + notificationCallBack + "(" + jo.toString() + ")";
+
 			if(notificationCallBackReady && gWebView != null){
 				Log.d(TAG, "\tSent PUSH to view: " + callBack);
 				gWebView.sendJavascript(callBack);
 			}else {
 				Log.d(TAG, "\tView not ready. SAVED NOTIFICATION: " + callBack);
 				lastPush = payload;
+				//FCMPluginActivity act2 = new FCMPluginActivity();
+
+
 			}
 		} catch (Exception e) {
 			Log.d(TAG, "\tERROR sendPushToView. SAVED NOTIFICATION: " + e.getMessage());
@@ -157,6 +174,11 @@ public class FCMPlugin extends CordovaPlugin {
   
   @Override
 	public void onDestroy() {
+		gWebView = null;
+		notificationCallBackReady = false;
+	}
+
+	public void onPause(Boolean status) {
 		gWebView = null;
 		notificationCallBackReady = false;
 	}
